@@ -27,12 +27,12 @@ dataset:
 
 # ===== DataLoader 参数 =====
 train:
-  batch_size:   16    # 每个batch的样本数 32vit 16cnn
+  batch_size:   32    # 每个batch的样本数 32vit 16cnn
   num_workers:  4     # 4个子进程加载训练数据
   shuffle:      true
 
 val:
-  batch_size:   16
+  batch_size:   32
   num_workers:  4     
   shuffle:      false
 
@@ -44,7 +44,7 @@ test:
 # ===== ViT模型配置 =====
 model:
   backbone:
-    img_size:    [576, 768] # [192, 256] # 384 512 
+    img_size:    [576, 768] # [192, 256]
     patch_size:  [192, 256]
     in_chans:   4
     num_classes: 12
