@@ -7,14 +7,17 @@ from torch.utils.data import DataLoader
 from datasets.rgbe_sequence_dataset import RGBESequenceDataset
 from models.model import VitModel
 from models.backbones.cnn import CNN_model
+from models.pointnet_model import PointNet2Model
 from models.losses.cross_entropy_loss import CrossEntropyLoss
 from utils.weight_utils import load_vitpose_pretrained
 import tqdm
 
-def main(config_path, best_model_path, log_path, pretrained_path=None):
+def main(config_path, best_model_path, log_path, pretrained_path=None, model_type_override=None):
     # 1. 加载配置
     with open(config_path, 'r') as f:
         cfg = yaml.safe_load(f)
+    if model_type_override is not None:
+        cfg['model_type'] = model_type_override
 
     # 2. 构造 Dataset & DataLoader
     ds = cfg['dataset']
@@ -53,10 +56,14 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
 
     # 3. 构建模型、损失、优化器
     device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
-    if pretrained_path:
+    model_type = cfg.get('model_type', 'cnn')
+    if model_type == 'vit':
         model = VitModel(cfg).to(device)
-        load_vitpose_pretrained(model, pretrained_path)
-        print(f"Loaded pretrained model from {pretrained_path}")
+        if pretrained_path:
+            load_vitpose_pretrained(model, pretrained_path)
+            print(f"Loaded pretrained model from {pretrained_path}")
+    elif model_type == 'pointnet2':
+        model = PointNet2Model(cfg).to(device)
     else:
         model = CNN_model(cfg).to(device)
 
@@ -85,6 +92,7 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         f.write(f" Train batch size: {cfg['train']['batch_size']}\n")
         f.write(f" Validation batch size: {cfg['val']['batch_size']}\n")
         f.write(f" Test batch size: {cfg['test']['batch_size']}\n")
+        f.write(f" Model type: {model_type}\n")
         f.write(f" ------ViT Model Configuration------\n")
         f.write(f" ViT Model: {cfg['model']}\n")
         f.write(f" ------CNN Model Configuration------\n")
@@ -226,5 +234,7 @@ if __name__ == '__main__':
                         help='Path to the log file')
     parser.add_argument('--pretrained', type=str, default='/home/qiangubuntu/research/har_rgbe/pretrained/vitpose-l.pth',
                         help='Path to ViTPose pre-trained weights')
+    parser.add_argument('--model_type', type=str, default=None,
+                        help='Override model type in config (cnn/vit/pointnet2)')
     args = parser.parse_args()
-    main(args.config, args.model, args.log, args.pretrained)
+    main(args.config, args.model, args.log, args.pretrained, args.model_type)

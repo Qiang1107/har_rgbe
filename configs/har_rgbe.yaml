@@ -95,3 +95,7 @@ epochs:   30
 device:   cuda:0
 work_dir: results/checkpoints
 log_dir: results/logs
+model_type: cnn  # options: cnn / vit / pointnet2
+
+pointnet2:
+  num_classes: 12
