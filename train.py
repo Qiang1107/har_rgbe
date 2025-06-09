@@ -8,9 +8,10 @@ from datasets.rgbe_sequence_dataset import RGBESequenceDataset
 from models.model import VitModel
 from models.backbones.cnn import CNN_model
 from models.losses.cross_entropy_loss import CrossEntropyLoss
+from utils.weight_utils import load_vitpose_pretrained
 import tqdm
 
-def main(config_path, best_model_path, log_path):
+def main(config_path, best_model_path, log_path, pretrained_path=None):
     # 1. 加载配置
     with open(config_path, 'r') as f:
         cfg = yaml.safe_load(f)
@@ -52,8 +53,11 @@ def main(config_path, best_model_path, log_path):
 
     # 3. 构建模型、损失、优化器
     device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
-    # model = VitModel(cfg).to(device)
-    model = CNN_model(cfg).to(device)
+    if pretrained_path:
+        model = VitModel(cfg).to(device)
+        load_vitpose_pretrained(model, pretrained_path)
+    else:
+        model = CNN_model(cfg).to(device)
 
     loss_fn = nn.CrossEntropyLoss()
     # optim_cfg = cfg['optimizer']
@@ -214,8 +218,10 @@ if __name__ == '__main__':
     parser.add_argument('--config', type=str, default='/home/qiangubuntu/research/har_rgbe/configs/har_rgbe.yaml',
                         help='Path to your_action_config.yaml')
     parser.add_argument('--model', type=str, default='results/checkpoints/vit_rgbe_2.pth',
-                        help='Path to the pre-trained model')
+                        help='Path to save the best model')
     parser.add_argument('--log', type=str, default='/home/qiangubuntu/research/har_rgbe/results/logs/training_log_vit_rgbe_2.txt',
                         help='Path to the log file')
+    parser.add_argument('--pretrained', type=str, default=None,
+                        help='Path to ViTPose pre-trained weights')
     args = parser.parse_args()
-    main(args.config, args.model, args.log)
+    main(args.config, args.model, args.log, args.pretrained)
