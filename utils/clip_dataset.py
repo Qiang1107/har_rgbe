@@ -5,12 +5,12 @@ import random
 
 """
 origin_data里面是12个子文件夹,每个子文件夹里面有若干个npy文件。
-将每个子文件夹里面的npy文件按照7:2:1的比例随机复制到train,val,test三个文件夹中同名的子文件夹中。
-比如子文件夹Align_screwdriver里面有32个npy文件,四舍五入,随机划分为23个,6个,3个,
+将每个子文件夹里面的npy文件按照613 or 622的比例随机复制到train,val,test三个文件夹中同名的子文件夹中。
+# 比如子文件夹Align_screwdriver里面有32个npy文件,四舍五入,随机划分为?个,32*a个,32*b个,
 并相应的复制到train,val,test三个文件夹中同名的子文件夹中。
 """ 
 
-def split_dataset(origin_data_path, output_path, train_ratio=0.6, val_ratio=0.1, test_ratio=0.3):
+def split_dataset(origin_data_path, output_path, train_ratio=0.6, val_ratio=0.2, test_ratio=0.2):
     # 确保比例之和为1
     assert abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6, "Ratios must sum to 1."
 
