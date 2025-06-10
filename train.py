@@ -270,9 +270,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', type=str, default='configs/har_train_config.yaml',
                         help='Path to config file')
-    parser.add_argument('--model', type=str, default='results/checkpoints/vit_event_2.pth',
+    parser.add_argument('--model', type=str, default='results/checkpoints/vit_event_3.pth',
                         help='Path to save the best model')
-    parser.add_argument('--log', type=str, default='results/logs/training_log_vit_event_2.txt',
+    parser.add_argument('--log', type=str, default='results/logs/training_log_vit_event_3.txt',
                         help='Path to the log file')
     parser.add_argument('--pretrained', type=str, default='pretrained/vitpose-l.pth',
                         help='Path to pre-trained weights')

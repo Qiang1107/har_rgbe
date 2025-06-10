@@ -110,7 +110,7 @@ optimizer:
   lr:           2e-4 # 0.0001 
   weight_decay: 5e-3 # 0.001 
 
-epochs:   30
+epochs:   100
 device:   cuda:0
 work_dir: results/checkpoints
 log_dir: results/logs

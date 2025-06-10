@@ -42,7 +42,7 @@ class RGBESequenceDataset(Dataset):
         # 1. 拆出这个样本对应的 npy 文件、起始帧、标签
         npy_path, start, label = self.samples[idx]
         arr = np.load(npy_path).astype(np.float32)  # (B, H, W, C)
-        print("arr.shape", arr.shape, "npy_path", npy_path, "start", start, "label", label)
+        # print("arr.shape", arr.shape, "npy_path", npy_path, "start", start, "label", label)
 
         # 2. 截取 [start : start+window_size] 帧
         clip = arr[start : start + self.window_size]  # (window_size, H, W, C)
