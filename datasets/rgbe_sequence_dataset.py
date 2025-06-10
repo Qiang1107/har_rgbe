@@ -49,15 +49,15 @@ class RGBESequenceDataset(Dataset):
         # print("clip.shape", clip.shape)
 
         # 3. 归一化
-        ##### 3.1 RGB 归一化
+        # -----RGB 归一化-----
         # clip[..., :3] /= 255.0
 
-        ##### 3.2 RGBE 归一化
-        clip[..., :3] /= 255.0
-        e = clip[..., 3]
-        clip[..., 3] = np.where(e == 0, 0.0, 1.0)
+        # -----RGBE 归一化-----
+        # clip[..., :3] /= 255.0
+        # e = clip[..., 3]
+        # clip[..., 3] = np.where(e == 0, 0.0, 1.0)
 
-        ##### 3.3 RGBD 归一化
+        # -----RGBD 归一化-----
         # clip[..., :3] /= 255.0
         # d = clip[..., 3]
         # # Normalize depth channel
@@ -67,9 +67,9 @@ class RGBESequenceDataset(Dataset):
         # else:
         #     clip[..., 3] = 0.0  # Set to zero if there's no depth variation
 
-        ##### 3.4 Event 归一化
-        # e = clip[..., 0]
-        # clip[..., 0] = np.where(e == 0, 0.0, 1.0)
+        # -----Event 归一化-----
+        e = clip[..., 0]
+        clip[..., 0] = np.where(e == 0, 0.0, 1.0)
         
         # 4. to Tensor & permute -> (T,C,H,W)
         clip = torch.from_numpy(clip).permute(0,3,1,2)
@@ -92,20 +92,19 @@ class RGBESequenceDataset(Dataset):
 
 # python -m datasets.rgbe_sequence_dataset
 if __name__ == '__main__':
-    config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgbe.yaml'
-    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgbd.yaml'
-    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgb.yaml'
-    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_event.yaml'
+    config_path='configs/har_train_config.yaml'
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config file not found: {config_path}")
     with open(config_path, 'r') as f:
         cfg = yaml.safe_load(f)
     
     # 测试数据集
     ds = RGBESequenceDataset(
-        data_root   = 'data/train',
-        window_size = 9,
-        stride      = 3,
-        enable_transform = True,
-        label_map   = cfg['dataset']['label_map']
+        data_root          = cfg['dataset']['train_dir'],
+        window_size        = cfg['dataset']['window_size'],
+        stride             = cfg['dataset']['stride'],
+        enable_transform   = cfg['dataset']['enable_transform'],
+        label_map          = cfg['dataset']['label_map']
     )
     print("len(ds)", len(ds))
     clip, label = ds[0]

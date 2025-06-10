@@ -3,9 +3,10 @@ import yaml
 import time
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from datasets.rgbe_sequence_dataset import RGBESequenceDataset
-from models.model import VitModel
+from models.model import VitModel, PointNet2Model
 from models.backbones.cnn import CNN_model
 from models.losses.cross_entropy_loss import CrossEntropyLoss
 from utils.weight_utils import load_vitpose_pretrained
@@ -55,6 +56,10 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
 
 
     # 3. 构建模型、损失、优化器
+    # —— 损失函数 ——
+    loss_fn = nn.CrossEntropyLoss()
+
+    # —— 模型 —— 
     device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
     model_type = cfg.get('model_type', 'cnn')
     if model_type == 'vit':
@@ -62,26 +67,60 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         if pretrained_path:
             load_vitpose_pretrained(model, pretrained_path)
             print(f"Loaded pretrained model from {pretrained_path}")
-    # elif model_type == 'pointnet2':
-    #     model = PointNet2Model(cfg).to(device)
+    elif model_type == 'pointnet2':
+        model = PointNet2Model(cfg).to(device)
+        loss_fn = F.nll_loss()
     elif model_type == 'cnn':
         model = CNN_model(cfg).to(device)
     else:
         raise ValueError(f"Unsupported model type: {model_type}")
 
-    loss_fn = nn.CrossEntropyLoss()
-    # optim_cfg = cfg['optimizer']
-    # optimizer = torch.optim.Adam(
-    #     model.parameters(),
-    #     lr=optim_cfg['lr'],
-    #     weight_decay=optim_cfg['weight_decay'],
-    # )
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-3)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg['epochs'])
+    # —— 优化器 ——
+    optim_cfg = cfg['optimizer']
+    optimizer = torch.optim.AdamW(
+        model.parameters(),
+        lr=float(optim_cfg['lr']),
+        weight_decay=float(optim_cfg['weight_decay']),
+    )
+    # optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-3)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg['epochs'])
+    # —— 带预热的余弦退火学习率调度器 —— 
+    cosine_warmup_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=10, T_mult=2, eta_min=1e-6
+    )
 
 
-    best_acc = 0.0
-    # 创建日志目录和文件
+    # —— 余弦退火学习率调度器 —— 
+    cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=cfg['epochs'], eta_min=1e-6
+    )
+    # —— 带预热的线性衰减调度器 —— 
+    def warmup_linear_decay(epoch):
+        warmup_epochs = 5
+        if epoch < warmup_epochs:
+            return epoch / warmup_epochs
+        else:
+            return 1.0 - 0.9 * (epoch - warmup_epochs) / (cfg['epochs'] - warmup_epochs)
+    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=warmup_linear_decay)
+    # —— 多步衰减学习率调度器 —— 
+    milestones = [int(cfg['epochs']*0.5), int(cfg['epochs']*0.75)]
+    step_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+        optimizer, milestones=milestones, gamma=0.1
+    )
+    # —— 余弦退火带热重启 —— 
+    warm_restart_scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, T_0=10, T_mult=2, eta_min=1e-6
+    )
+    # —— One Cycle学习率调度器 —— 
+    steps_per_epoch = len(train_loader)
+    onecycle_scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer, max_lr=float(optim_cfg['lr'])*10, 
+        steps_per_epoch=steps_per_epoch, epochs=cfg['epochs']
+    )
+    # 使用其中一个调度器 
+    scheduler = cosine_warmup_scheduler
+
+    # 4. 创建日志目录和文件
     if log_path is None:
         log_path = os.path.join(cfg['log_dir'], 'training_log_tmp.txt')
     os.makedirs(cfg['log_dir'], exist_ok=True)
@@ -103,11 +142,14 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         f.write(f" Pointnet2 Model: {cfg['pointnet2_model']}\n")
         if pretrained_path is not None:
             f.write(f" Loaded pretrained model: {pretrained_path}\n")
+    
+    # 5. 训练、验证、测试
+    best_acc = 0.0
     for epoch in range(cfg['epochs']):
         # —— 训练 —— 
-        train_start_time = time.time()
         print(f"[Epoch {epoch+1}/{cfg['epochs']}]:")
         print("Training...")
+        train_start_time = time.time()
         model.train()
         total_loss = 0.0
         for imgs, labels in tqdm.tqdm(train_loader):
@@ -119,8 +161,8 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-        avg_train_loss = total_loss / len(train_loader)
         train_end_time = time.time()
+        avg_train_loss = total_loss / len(train_loader)
 
         print(f"Train Loss: {avg_train_loss:.4f}")
         with open(log_path, 'a') as f:
@@ -138,15 +180,14 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         with open(log_path, 'a') as f:
             f.write(f"Training statistics: {num_train_samples} samples in {num_train_batches} batches\n")
         
-        # 记录训练时间
         train_time = train_end_time - train_start_time
         print(f"Training time: {train_time:.2f} seconds")
         with open(log_path, 'a') as f:
             f.write(f"Training time: {train_time:.2f} seconds\n")
         
         # —— 验证 —— 
-        val_start_time = time.time()
         print("Validating...")
+        val_start_time = time.time()
         model.eval()
         val_loss = correct = total = 0.0
         with torch.no_grad():
@@ -158,10 +199,10 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
                 preds = logits.argmax(dim=1)
                 correct += (preds == labels).sum().item()
                 total   += labels.size(0)
+        val_end_time = time.time()
         avg_val_loss = val_loss / len(val_loader)
         val_acc = correct / total
-        val_end_time = time.time()
-
+        
         print(f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
         with open(log_path, 'a') as f:
             f.write(f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}\n")
@@ -172,7 +213,6 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         with open(log_path, 'a') as f:
             f.write(f"Validation statistics: {num_val_samples} samples in {num_val_batches} batches\n")
         
-        # 记录验证时间
         val_time = val_end_time - val_start_time
         print(f"Validation time: {val_time:.2f} seconds")
         with open(log_path, 'a') as f:
@@ -186,12 +226,11 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         print(f"-"*30)
 
     # —— 测试评估 —— 
-    # Load the best model for testing
     model.load_state_dict(torch.load(best_model_path))
     print(f"Loaded best model from {best_model_path}")
     
-    test_start_time = time.time()
     print("Testing...")
+    test_start_time = time.time()
     model.eval()
     correct = total = 0
     with torch.no_grad():
@@ -202,13 +241,12 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
             preds = logits.argmax(dim=1)
             correct += (preds == labels).sum().item()
             total   += labels.size(0)
-    test_acc = correct / total
     test_end_time = time.time()
+    test_acc = correct / total
     
     with open(log_path, 'a') as f:
         f.write(f"\nTest with best model from {best_model_path}\n")
 
-    # 记录测试时间
     test_time = test_end_time - test_start_time
     print(f"Test time: {test_time:.2f} seconds")
     with open(log_path, 'a') as f:
@@ -230,13 +268,13 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='/home/qiangubuntu/research/har_rgbe/configs/har_rgbe.yaml',
-                        help='Path to your_action_config.yaml')
-    parser.add_argument('--model', type=str, default='results/checkpoints/vit_rgbe_2.pth',
+    parser.add_argument('--config', type=str, default='configs/har_train_config.yaml',
+                        help='Path to config file')
+    parser.add_argument('--model', type=str, default='results/checkpoints/vit_event_2.pth',
                         help='Path to save the best model')
-    parser.add_argument('--log', type=str, default='/home/qiangubuntu/research/har_rgbe/results/logs/training_log_vit_rgbe_2.txt',
+    parser.add_argument('--log', type=str, default='results/logs/training_log_vit_event_2.txt',
                         help='Path to the log file')
-    parser.add_argument('--pretrained', type=str, default='/home/qiangubuntu/research/har_rgbe/pretrained/vitpose-l.pth',
-                        help='Path to ViTPose pre-trained weights')
+    parser.add_argument('--pretrained', type=str, default='pretrained/vitpose-l.pth',
+                        help='Path to pre-trained weights')
     args = parser.parse_args()
     main(args.config, args.model, args.log, args.pretrained)

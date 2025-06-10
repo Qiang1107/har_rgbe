@@ -9,6 +9,7 @@ from models.necks.sequence_neck import SequenceNeck
 from models.heads.classification_head import ClassificationHead
 from models.backbones.vit import ViT
 from models.backbones.cnn import CNN_model
+from models.backbones.pointnet2 import PointNet2Classifier
 from utils.extensions import mosaic_frames
 
 
@@ -59,17 +60,33 @@ class VitModel(nn.Module):
         
         return logits
 
+
+class PointNet2Model(nn.Module):
+    """Wrapper applying PointNet++ on RGBE frame sequences."""
+    def __init__(self, cfg: dict):
+        super().__init__()
+        num_classes = cfg['pointnet2_model']['num_classes']
+        self.backbone = PointNet2Classifier(num_class=num_classes, normal_channel=True)
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        B, T, C, H, W = x.shape
+        t_coords = torch.linspace(0, 1, steps=T, device=x.device)
+        y_coords = torch.linspace(0, 1, steps=H, device=x.device)
+        x_coords = torch.linspace(0, 1, steps=W, device=x.device)
+        grid_t, grid_y, grid_x = torch.meshgrid(t_coords, y_coords, x_coords, indexing='ij')
+        coords = torch.stack((grid_x, grid_y, grid_t), dim=0).unsqueeze(0).repeat(B, 1, 1, 1, 1)
+        points = torch.cat([coords, x], dim=1).reshape(B, 3 + C, -1)
+        logits = self.backbone(points)
+        return logits
+
 # python -m models.model
 if __name__ == '__main__':
-    config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgbe.yaml'
-    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgbd.yaml'
-    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgb.yaml'
-    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_event.yaml'
+    config_path='configs/har_train_config.yaml'
     with open(config_path, 'r') as f:
         cfg = yaml.safe_load(f)
 
     # peusdo data
-    x = torch.randn(4, 9, 4, 192, 256).to('cuda')  # [B, T, C, H, W] 
+    x = torch.randn(4, 9, 1, 192, 256).to('cuda')  # [B, T, C, H, W] 
 
     # Vit model 测试
     model = VitModel(cfg).to('cuda')

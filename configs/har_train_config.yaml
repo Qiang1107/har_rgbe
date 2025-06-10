@@ -1,12 +1,12 @@
 # configs/your_action_config.yaml
 
+
 # ===== 数据集设置 =====
 dataset:
   train_dir: data/train
   val_dir:   data/val
   test_dir:  data/test
 
-  # 类别映射
   label_map:
     Align_screwdriver:     0
     Approach:              1
@@ -25,38 +25,48 @@ dataset:
   stride:      3      # 滑动步长
   enable_transform: true  # 是否启用数据增强
 
+
 # ===== DataLoader 参数 =====
 train:
-  batch_size:   32
+  # ---------------------------------------
+  # 32 for vit, 16 for cnn, 
+  batch_size:   8  
+  # ---------------------------------------
   num_workers:  4     # 4个子进程加载训练数据
   shuffle:      true
 
 val:
-  batch_size:   32
+  # ---------------------------------------
+  batch_size:   8
+  # ---------------------------------------
   num_workers:  4     
   shuffle:      false
 
 test:
-  batch_size:   16
+  batch_size:   4
   num_workers:  4    
   shuffle:      false
 
+
 # ===== ViT模型配置 =====
-model:
+vit_model:
   backbone:
-    img_size:    384 # 384 512
-    patch_size:  128
-    in_chans:    3
-    num_classes: 12
-    embed_dim:   768
-    depth:      12
-    num_heads:  12
-    mlp_ratio:  4.
+    # ---------------------------------------
+    img_size:    [576, 768] # [192, 256]
+    patch_size:  [192, 256]
+    # 4 for rgbe and rgbd, 3 for rgb, 1 for event
+    in_chans:   1
+    # ---------------------------------------
+    num_classes: 8 # 12
+    embed_dim:   384 # 768
+    depth:      6 # 12
+    num_heads:  6 # 12
+    mlp_ratio:  3.0 # 4.
     qkv_bias:   true
     qk_scale:   null
-    drop_rate:  0.
-    attn_drop_rate: 0.
-    drop_path_rate: 0.3
+    drop_rate:  0.2
+    attn_drop_rate: 0.2
+    drop_path_rate: 0.5
     hybrid_backbone: null
     norm_layer:  null
     use_checkpoint: false
@@ -68,30 +78,42 @@ model:
     freeze_ffn:  false
 
   neck:
-    input_dim:  768
-    hidden_dim: 256
+    input_dim:  384 # 768
+    hidden_dim: 192 # 256
     mode: mean           # 可选：lstm / mean / none
 
   head:
-    input_dim:    256  # 与 neck 输出一致
+    input_dim:    192  # 与 neck 输出一致
     num_classes:  12
     dropout_prob: 0.5
 
+
 # ===== cnn模型配置 =====
 cnn_model:
-  input_dim:  3          # 输入通道数，RGB视频
+  # ---------------------------------------
+  # 4 for rgbe and rgbd, 3 for rgb, 1 for event
+  input_dim:  1          # 输入通道数
   output_dim: 12          # 输出类别数
-  input_height: 128          # 输入图像高度
-  input_width: 128           # 输入图像宽度
+  input_height: 192          # 输入图像高度
+  input_width: 256           # 输入图像宽度
+  # ---------------------------------------
+
+
+# ===== pointnet2模型配置 =====
+pointnet2_model:
+  num_classes: 12
 
 
 # ===== 优化器 & 训练 =====
 optimizer:
-  type:         Adam
-  lr:           0.0001
-  weight_decay: 1e-3
+  type:         AdamW # 可选：SGD / Adam / AdamW
+  lr:           2e-4 # 0.0001 
+  weight_decay: 5e-3 # 0.001 
 
 epochs:   30
 device:   cuda:0
 work_dir: results/checkpoints
 log_dir: results/logs
+# ---------------------------------------
+model_type: vit  # options: cnn / vit / pointnet2
+# ---------------------------------------
