@@ -115,5 +115,5 @@ device:   cuda:0
 work_dir: results/checkpoints
 log_dir: results/logs
 # ---------------------------------------
-model_type: vit  # options: cnn / vit / pointnet2
+model_type: pointnet2  # options: cnn / vit / pointnet2
 # ---------------------------------------

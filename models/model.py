@@ -86,14 +86,12 @@ if __name__ == '__main__':
         cfg = yaml.safe_load(f)
 
     # peusdo data
-    x = torch.randn(4, 9, 1, 192, 256).to('cuda')  # [B, T, C, H, W] 
+    x = torch.randn(8, 9, 1, 192, 256).to('cuda')  # [B, T, C, H, W] 
 
-    # Vit model 测试
-    model = VitModel(cfg).to('cuda')
-
-    # CNN model 测试
-    # input_dim和Channel一致, output_dim是输出类别
-    # model = CNN_model(cfg).to('cuda')
+    # 测试
+    # model = VitModel(cfg).to('cuda')
+    # model = CNN_model(cfg).to('cuda') # CNN input_dim和Channel一致, output_dim是输出类别
+    model = PointNet2Model(cfg).to('cuda') 
 
     # forward
     results = model(x)
