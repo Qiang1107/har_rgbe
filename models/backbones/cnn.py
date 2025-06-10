@@ -14,9 +14,9 @@ class CNN_model(nn.Module):
         cnn_cfg = cfg['cnn_model']
         input_dim = cnn_cfg['input_dim']
         output_dim = cnn_cfg['output_dim']
-        # 如果没有提供 input_width 和 input_height，则使用默认值 224
-        input_width = cnn_cfg.get('input_width', 224)  
-        input_height = cnn_cfg.get('input_height', 224)
+        # 如果没有提供 input_width 和 input_height，则使用默认值
+        input_width = cnn_cfg.get('input_width', 192)  
+        input_height = cnn_cfg.get('input_height', 256)
 
         self.conv_layers = nn.Sequential(
             # 第一层卷积

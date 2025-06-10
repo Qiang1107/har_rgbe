@@ -1,5 +1,4 @@
 import yaml
-import math
 import torch
 import torch.nn as nn
 import os
@@ -10,25 +9,7 @@ from models.necks.sequence_neck import SequenceNeck
 from models.heads.classification_head import ClassificationHead
 from models.backbones.vit import ViT
 from models.backbones.cnn import CNN_model
-
-
-def mosaic_frames(x: torch.Tensor) -> torch.Tensor:
-    # x: [B, T, C, H, W]
-    B, T, C, H, W = x.shape
-    # 计算最近的上界整数平方尺寸 k
-    k = math.ceil(math.sqrt(T))
-    total_patches = k * k
-    # 如有需要，补充零帧至 T 达到 k^2
-    if T < total_patches:
-        pad_frames = total_patches - T
-        pad_shape = (B, pad_frames, C, H, W)
-        pad_tensor = torch.zeros(pad_shape, dtype=x.dtype, device=x.device)
-        x = torch.cat([x, pad_tensor], dim=1)  # 在时间维度拼接零帧
-    # 重塑并permute维度，将 k×k 个帧拼成大图
-    x = x.view(B, k, k, C, H, W)                       # [B, k, k, C, H, W]
-    x = x.permute(0, 3, 1, 4, 2, 5).contiguous()       # [B, C, k, H, k, W]
-    x = x.view(B, C, k * H, k * W)                     # [B, C, H*k, W*k]
-    return x
+from utils.extensions import mosaic_frames
 
 
 class VitModel(nn.Module):
@@ -39,9 +20,9 @@ class VitModel(nn.Module):
     """
     def __init__(self, cfg: dict):
         super().__init__()
-        backbone_cfg = cfg['model']['backbone']
-        neck_cfg = cfg['model']['neck']
-        head_cfg = cfg['model']['head']
+        backbone_cfg = cfg['vit_model']['backbone']
+        neck_cfg = cfg['vit_model']['neck']
+        head_cfg = cfg['vit_model']['head']
 
         # 1) Backbone：ViTPose
         self.backbone = ViT(**backbone_cfg)
@@ -88,14 +69,14 @@ if __name__ == '__main__':
         cfg = yaml.safe_load(f)
 
     # peusdo data
-    x = torch.randn(32, 9, 4, 192, 256).to('cuda')  # [B, T, C, H, W] 
+    x = torch.randn(4, 9, 4, 192, 256).to('cuda')  # [B, T, C, H, W] 
 
     # Vit model 测试
-    # model = VitModel(cfg).to('cuda')
+    model = VitModel(cfg).to('cuda')
 
     # CNN model 测试
     # input_dim和Channel一致, output_dim是输出类别
-    model = CNN_model(cfg).to('cuda')
+    # model = CNN_model(cfg).to('cuda')
 
     # forward
     results = model(x)

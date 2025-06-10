@@ -22,19 +22,22 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         data_root          = ds['train_dir'],
         window_size        = ds['window_size'],
         stride             = ds['stride'],
-        enable_transform   = ds['enable_transform']
+        enable_transform   = ds['enable_transform'],
+        label_map          = ds['label_map']
     )
     val_ds = RGBESequenceDataset(
         data_root          = ds['val_dir'],
         window_size        = ds['window_size'],
         stride             = ds['stride'],
-        enable_transform   = ds['enable_transform']
+        enable_transform   = ds['enable_transform'],
+        label_map          = ds['label_map']
     )
     test_ds = RGBESequenceDataset(
         data_root          = ds['test_dir'],
         window_size        = ds['window_size'],
         stride             = ds['stride'],
-        enable_transform   = ds['enable_transform']
+        enable_transform   = ds['enable_transform'],
+        label_map          = ds['label_map']
     )
 
     train_loader = DataLoader(
@@ -53,12 +56,18 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
 
     # 3. 构建模型、损失、优化器
     device = torch.device(cfg['device'] if torch.cuda.is_available() else 'cpu')
-    if pretrained_path:
+    model_type = cfg.get('model_type', 'cnn')
+    if model_type == 'vit':
         model = VitModel(cfg).to(device)
-        load_vitpose_pretrained(model, pretrained_path)
-        print(f"Loaded pretrained model from {pretrained_path}")
-    else:
+        if pretrained_path:
+            load_vitpose_pretrained(model, pretrained_path)
+            print(f"Loaded pretrained model from {pretrained_path}")
+    # elif model_type == 'pointnet2':
+    #     model = PointNet2Model(cfg).to(device)
+    elif model_type == 'cnn':
         model = CNN_model(cfg).to(device)
+    else:
+        raise ValueError(f"Unsupported model type: {model_type}")
 
     loss_fn = nn.CrossEntropyLoss()
     # optim_cfg = cfg['optimizer']
@@ -85,10 +94,13 @@ def main(config_path, best_model_path, log_path, pretrained_path=None):
         f.write(f" Train batch size: {cfg['train']['batch_size']}\n")
         f.write(f" Validation batch size: {cfg['val']['batch_size']}\n")
         f.write(f" Test batch size: {cfg['test']['batch_size']}\n")
+        f.write(f" Model type: {model_type}\n")
         f.write(f" ------ViT Model Configuration------\n")
-        f.write(f" ViT Model: {cfg['model']}\n")
+        f.write(f" ViT Model: {cfg['vit_model']}\n")
         f.write(f" ------CNN Model Configuration------\n")
         f.write(f" CNN Model: {cfg['cnn_model']}\n")
+        f.write(f" ------Pointnet2 Model Configuration------\n")
+        f.write(f" Pointnet2 Model: {cfg['pointnet2_model']}\n")
         if pretrained_path is not None:
             f.write(f" Loaded pretrained model: {pretrained_path}\n")
     for epoch in range(cfg['epochs']):

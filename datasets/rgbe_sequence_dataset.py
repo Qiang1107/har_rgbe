@@ -1,40 +1,15 @@
 import os
+import sys
+import yaml
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-LABEL_MAP = {
-    'Align_screwdriver':     0,
-    'Approach':              1,
-    'Idle':                  2,
-    'No_human':              3,
-    'Pick_bolt':             4,
-    'Pick_cover':            5,
-    'Pick_screwdriver':      6,
-    'Place_bolt':            7,
-    'Place_cover':           8,
-    'Put_down_screwdriver':  9,
-    'Screw':                10,
-    'Transition':           11
-}
-
-
-def resize_and_normalize(img):
-    import torchvision.transforms as T
-    target_size = (192, 256) # (H, W)
-    resize_transform = T.Compose([
-        T.ToPILImage(),
-        T.Resize(target_size),
-        T.ToTensor()
-    ])
-
-    img = resize_transform(img)
-    # print("Function [transform]: img.shape", img.shape)
-    return img.squeeze(0)
-    
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from utils.extensions import resize_and_normalize
 
 class RGBESequenceDataset(Dataset):
-    def __init__(self, data_root, window_size, stride, enable_transform=True):
+    def __init__(self, data_root, window_size, stride, enable_transform, label_map):
         """
         data_root: 根目录，下面按类别子文件夹存 npy
         window_size: 每个样本固定帧数
@@ -47,7 +22,8 @@ class RGBESequenceDataset(Dataset):
 
         # --- 预扫描 data_root，生成 (npy_path, start_idx, label) 列表 ---
         self.samples = []
-        for cls_name, cls_idx in LABEL_MAP.items():
+        for cls_name, cls_idx in label_map.items():
+            # print(f"Processing class: {cls_name} (index: {cls_idx})")
             cls_dir = os.path.join(data_root, cls_name)
             for fname in os.listdir(cls_dir):
                 if not fname.endswith('.npy'):
@@ -116,13 +92,20 @@ class RGBESequenceDataset(Dataset):
 
 # python -m datasets.rgbe_sequence_dataset
 if __name__ == '__main__':
+    config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgbe.yaml'
+    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgbd.yaml'
+    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_rgb.yaml'
+    # config_path='/home/qiangubuntu/research/har_rgbe/configs/har_event.yaml'
+    with open(config_path, 'r') as f:
+        cfg = yaml.safe_load(f)
+    
     # 测试数据集
     ds = RGBESequenceDataset(
-        # data_root   = '/home/qiangubuntu/research/har_rgbe/data/train',
         data_root   = 'data/train',
         window_size = 9,
         stride      = 3,
-        enable_transform = True
+        enable_transform = True,
+        label_map   = cfg['dataset']['label_map']
     )
     print("len(ds)", len(ds))
     clip, label = ds[0]

@@ -1,5 +1,6 @@
 # configs/your_action_config.yaml
 
+
 # ===== 数据集设置 =====
 dataset:
   train_dir: data/train
@@ -25,24 +26,26 @@ dataset:
   stride:      3      # 滑动步长
   enable_transform: true  # 是否启用数据增强
 
+
 # ===== DataLoader 参数 =====
 train:
-  batch_size:   32    # 每个batch的样本数 32vit 16cnn
+  batch_size:   4    # 每个batch的样本数 32vit 16cnn
   num_workers:  4     # 4个子进程加载训练数据
   shuffle:      true
 
 val:
-  batch_size:   32
+  batch_size:   4
   num_workers:  4     
   shuffle:      false
 
 test:
-  batch_size:   16
+  batch_size:   4
   num_workers:  4    
   shuffle:      false
 
+
 # ===== ViT模型配置 =====
-model:
+vit_model:
   backbone:
     img_size:    [576, 768] # [192, 256]
     patch_size:  [192, 256]
@@ -77,12 +80,18 @@ model:
     num_classes:  12
     dropout_prob: 0.5
 
+
 # ===== cnn模型配置 =====
 cnn_model:
   input_dim:  4          # 输入通道数，RGBE视频
   output_dim: 12          # 输出类别数
   input_height: 192          # 输入图像高度
   input_width: 256           # 输入图像宽度
+
+
+# ===== pointnet2模型配置 =====
+pointnet2_model:
+  num_classes: 12
 
 
 # ===== 优化器 & 训练 =====
@@ -93,5 +102,6 @@ optimizer:
 
 epochs:   30
 device:   cuda:0
+model_type: vit  # options: cnn / vit / pointnet2
 work_dir: results/checkpoints
 log_dir: results/logs
