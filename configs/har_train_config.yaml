@@ -30,21 +30,21 @@ dataset:
 train:
   # ---------------------------------------
   # 32 for vit, 16 for cnn, 
-  batch_size:   8  
+  batch_size:   4  
   # ---------------------------------------
-  num_workers:  4     # 4个子进程加载训练数据
+  num_workers:  0     # 4 4个子进程加载训练数据
   shuffle:      true
 
 val:
   # ---------------------------------------
-  batch_size:   8
+  batch_size:   4
   # ---------------------------------------
-  num_workers:  4     
+  num_workers:  0     
   shuffle:      false
 
 test:
   batch_size:   4
-  num_workers:  4    
+  num_workers:  0    
   shuffle:      false
 
 

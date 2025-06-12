@@ -70,6 +70,7 @@ class PointNet2Model(nn.Module):
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, T, C, H, W = x.shape
+        x = x.permute(0, 2, 1, 3, 4)  # [B, C, T, H, W]
         t_coords = torch.linspace(0, 1, steps=T, device=x.device)
         y_coords = torch.linspace(0, 1, steps=H, device=x.device)
         x_coords = torch.linspace(0, 1, steps=W, device=x.device)
@@ -86,7 +87,7 @@ if __name__ == '__main__':
         cfg = yaml.safe_load(f)
 
     # peusdo data
-    x = torch.randn(8, 9, 1, 192, 256).to('cuda')  # [B, T, C, H, W] 
+    x = torch.randn(1, 9, 1, 192, 256).to('cuda')  # [B, T, C, H, W] 
 
     # 测试
     # model = VitModel(cfg).to('cuda')
@@ -96,3 +97,4 @@ if __name__ == '__main__':
     # forward
     results = model(x)
     print("[results.shape]: ", results.shape) # [B, output_dim]
+    

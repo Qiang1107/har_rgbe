@@ -272,4 +272,3 @@ class PointNet2Classifier(nn.Module):
         x = self.drop2(F.relu(self.bn2(self.fc2(x))))
         x = self.fc3(x)
         return x
-

@@ -4,10 +4,11 @@ import yaml
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from utils.extensions import resize_and_normalize
 
+
+# 四种数据以frame的形式保存为npy,然后通过RGBESequenceDataset加载
 class RGBESequenceDataset(Dataset):
     def __init__(self, data_root, window_size, stride, enable_transform, label_map):
         """
