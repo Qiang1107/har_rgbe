@@ -10,7 +10,7 @@ from utils.extensions import resize_and_normalize
 
 # 四种数据以frame的形式保存为npy,然后通过RGBESequenceDataset加载
 class RGBESequenceDataset(Dataset):
-    def __init__(self, data_root, window_size, stride, enable_transform, label_map):
+    def __init__(self, data_root, window_size, stride, enable_augment, label_map):
         """
         data_root: 根目录，下面按类别子文件夹存 npy
         window_size: 每个样本固定帧数
@@ -19,7 +19,7 @@ class RGBESequenceDataset(Dataset):
         """
         self.window_size = window_size
         self.stride = stride
-        self.enable_transform = enable_transform
+        self.enable_augment = enable_augment
 
         # --- 预扫描 data_root，生成 (npy_path, start_idx, label) 列表 ---
         self.samples = []
@@ -77,7 +77,7 @@ class RGBESequenceDataset(Dataset):
         # print("clip.shape after permute", clip.shape)
 
         # 5. 对每一帧做缩放处理
-        if self.enable_transform:
+        if self.enable_augment:
             frames = []
             for t in range(clip.size(0)):
                 # print("clip[t].shape", clip[t].shape)

@@ -21,9 +21,14 @@ dataset:
     Screw:                10
     Transition:           11
 
-  window_size: 9     # 定长帧数
-  stride:      3      # 滑动步长
-  enable_transform: true  # 是否启用数据增强
+  window_size: 9          # 定长帧数
+  stride:      3          # 滑动步长
+  enable_augment: true  # 是否启用数据增强
+  window_size_us: 333333  # 单位微秒us
+  stride_us:      66666   # 单位微秒us
+  max_points:  4096       # 点云最大点数
+  time_dimension: true  # 是否使用时间维度
+  # 如果为true，则输入维度为4（x, y, z, t），否则为3（x, y, z）
 
 
 # ===== DataLoader 参数 =====
@@ -102,6 +107,9 @@ cnn_model:
 # ===== pointnet2模型配置 =====
 pointnet2_model:
   num_classes: 12
+  normal_channel: False  # 事件数据没有法向量
+  input_dim: 4  # 当time_dimension=True时
+  # input_dim: 3  # 如果time_dimension=False
 
 
 # ===== 优化器 & 训练 =====
